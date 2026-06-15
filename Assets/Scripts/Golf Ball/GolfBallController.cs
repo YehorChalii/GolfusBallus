@@ -1,23 +1,19 @@
 using System;
-using System.Collections; // Added for IEnumerator and Coroutines
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class GolfBallController : MonoBehaviour
 {
-    public event Action<Vector3, float> OnAimUpdated;
-    public event Action OnAimCanceled;
-    public event Action<Vector3, float> OnBallLaunched;
-    public event Action OnMudEntered;
-    public event Action OnMudExited;
-
-    public static Action OnBallStoppedMoving;
-    public static Action OnBallLose;
-    public static Action OnBallHitMonster;
+    [Header("References")]
+    [SerializeField] private CameraController _cameraController;
 
     [Header("Launch Settings")]
     [SerializeField] private float _maxLaunchForce;
     [SerializeField] private float _aimDeadzone;
+
+    private float _currentSpeed;
+    private float _normalizedCurrentSpeed;
 
     [Header("Ball States")]
     [SerializeField] private float _stopSpeedThreshold;
@@ -26,37 +22,34 @@ public class GolfBallController : MonoBehaviour
     [SerializeField, Range(0.9f, 1f)] private float rollingFriction;
     [SerializeField, Range(0.8f, 1f)] private float stoppingFriction;
 
-    [Header("References")]
-    [SerializeField] private CameraController _cameraController;
+    private float _launchTimer;
 
     [Header("Mud")]
     [SerializeField] private LayerMask _mudLayer;
     [SerializeField] private LayerMask _mudMonsterLayer;
     [SerializeField, Range(0f, 1f)] private float _mudFrictionMultiplier;
 
+    private bool _isInMud;
+
     [Header("Wind")]
     [SerializeField] private float _maxWindForce;
     [SerializeField, Range(0f, 1f)] private float _windAlignmentForceMultiplier;
+
     private Vector3 _windDirection;
 
     [Header("Input")]
     [SerializeField] private float _aimSmoothTime;
-
-    private enum BallState { Idle, Aiming, Launched }
-    private BallState _state = BallState.Idle;
-
-    private Rigidbody _rb;
-    private InputSystem_Actions _controls;
 
     private Vector2 _aimInput;
     private Vector2 _smoothedAimInput;
     private Vector2 _aimSmoothVelocity;
     private Vector2 _currentPull;
 
-    private bool _isInMud;
-    private float _launchTimer;
-    private float _currentSpeed;
-    private float _normalizedCurrentSpeed;
+    private enum BallState { Idle, Aiming, Launched }
+    private BallState _state = BallState.Idle;
+
+    private Rigidbody _rb;
+    private InputSystem_Actions _controls;
 
     void Awake()
     {
@@ -100,30 +93,29 @@ public class GolfBallController : MonoBehaviour
         _state = BallState.Launched;
         _launchTimer = 0f;
 
-        _cameraController.SetAimPower(0f);
-
-        float powerMultiplier = Mathf.Clamp01(_currentPull.magnitude);
-        float power = powerMultiplier * _maxLaunchForce;
-        Vector3 launchDir = GetLaunchDirection();
+        Vector3 launchDirection = GetLaunchDirection();
+        float normalizedPower = GetNormalizedPower();
+        float launchForce = normalizedPower * _maxLaunchForce;
 
         _rb.linearVelocity = Vector3.zero;
         _rb.angularVelocity = Vector3.zero;
-        _rb.AddForce(launchDir * power, ForceMode.Impulse);
+        _rb.AddForce(launchDirection * launchForce, ForceMode.Impulse);
 
-        _cameraController.OnBallLaunched(launchDir);
-
-        OnBallLaunched?.Invoke(launchDir, power);
+        GolfBallEvents.RaiseGolfBallLaunched(launchDirection);
 
         _currentPull = Vector2.zero;
+    }
+
+    private float GetNormalizedPower()
+    {
+        return Mathf.Clamp01(_currentPull.magnitude);
     }
 
     void CancelAim()
     {
         _state = BallState.Idle;
-        _cameraController.SetAimPower(0f);
         _currentPull = Vector2.zero;
-
-        OnAimCanceled?.Invoke();
+        GolfBallEvents.RaiseGolfBallAimCanceled();
     }
 
     void Update()
@@ -156,6 +148,7 @@ public class GolfBallController : MonoBehaviour
         if (joystickPulled && _state == BallState.Idle)
         {
             _state = BallState.Aiming;
+            GolfBallEvents.RaiseGolfBallAimStarted();
         }
         else if (!joystickPulled && _state == BallState.Aiming)
         {
@@ -165,11 +158,10 @@ public class GolfBallController : MonoBehaviour
 
         if (_state == BallState.Aiming)
         {
-            float power = Mathf.Clamp01(_currentPull.magnitude);
-            Vector3 launchDir = GetLaunchDirection();
+            Vector3 launchDirection = GetLaunchDirection();
+            float normalizedPower = GetNormalizedPower();
 
-            _cameraController.SetAimPower(power);
-            OnAimUpdated?.Invoke(launchDir, power);
+            GolfBallEvents.RaiseGolfBallAimUpdated(launchDirection, normalizedPower);
         }
     }
 
@@ -232,14 +224,12 @@ public class GolfBallController : MonoBehaviour
         if (_isInMud && _state == BallState.Launched)
         {
             OnLose();
-
             return;
         }
 
         if (_state == BallState.Launched)
         {
             _state = BallState.Idle;
-
             StartCoroutine(DelayStopEvent());
         }
     }
@@ -247,7 +237,7 @@ public class GolfBallController : MonoBehaviour
     private IEnumerator DelayStopEvent()
     {
         yield return new WaitForSeconds(_afterStopDelay);
-        OnBallStoppedMoving?.Invoke();
+        GolfBallEvents.RaiseGolfBallStopped();
     }
 
     void CheckOutOfMap()
@@ -261,8 +251,7 @@ public class GolfBallController : MonoBehaviour
     void OnLose()
     {
         _state = BallState.Idle;
-        OnBallLose?.Invoke();
-
+        RoundEvents.RaiseGameOver(RoundEvents.WinnerType.MudMonster);
         Stop();
     }
 
@@ -285,12 +274,12 @@ public class GolfBallController : MonoBehaviour
         if ((_mudLayer.value & (1 << other.gameObject.layer)) != 0)
         {
             _isInMud = true;
-            OnMudEntered?.Invoke();
+            GolfBallEvents.RaiseGolfBallMudEnter();
         }
 
         if ((_mudMonsterLayer.value & (1 << other.gameObject.layer)) != 0)
         {
-            OnBallHitMonster?.Invoke();
+            RoundEvents.RaiseGameOver(RoundEvents.WinnerType.GolfBall);
             Stop();
         }
     }
@@ -300,7 +289,7 @@ public class GolfBallController : MonoBehaviour
         if ((_mudLayer.value & (1 << other.gameObject.layer)) != 0)
         {
             _isInMud = false;
-            OnMudExited?.Invoke();
+            GolfBallEvents.RaiseGolfBallMudExit();
         }
     }
 

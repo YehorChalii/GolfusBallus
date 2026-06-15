@@ -2,71 +2,70 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public static Action OnGameOver;
-
     public static GameManager Instance { get; private set; }
 
-    public enum GameState { MainMenu, RainSetup, MonsterSetup, GolfTurn, WindSelect, MonsterTurn, Resolution }
-    private GameState _currentState = GameState.MainMenu;
-    private GameState _pendingState = GameState.MainMenu;
+    public enum GameState { Pending, RainSetup, GolfTurn, WindSelect, MonsterTurn, Resolution }
+    private GameState _currentState = GameState.Pending;
+    private GameState _pendingState = GameState.Pending;
 
-    [Header("Systems")]
-    [SerializeField] private EnvironmentManager _environmentManager;
+    [Header("References")]
     [SerializeField] private CameraController _cameraController;
 
     [Header("Players")]
     [SerializeField] private GolfBallController _golfBall;
     [SerializeField] private MudMonsterController _mudMonster;
 
-    private int _rainLandedCount = 0;
+    [Header("Managers")]
+    [SerializeField] private EnvironmentManager _environmentManager;
+    [SerializeField] private GameUIManager _gameUIManager;
+    [SerializeField] private WindUIManager _windUIManager;
 
-    [Header("Monster Setup Settings")]
-    [SerializeField] private int _monsterSetupShots;
-    private int _monsterSetupFired = 0;
-
-    [Header("Wind Settings")]
+    [Header("Mud Monster Rounds Settings")]
     [SerializeField] private int _roundsPerWindChange;
     private int _completedRounds = 0;
-    public Vector3 CurrentWindDirection { get; private set; }
 
-    [Header("Settings")]
+    private Vector3 _currentWindDirection;
+
+    [Header("Loading Settings")]
     [SerializeField] private float _landedDelay;
 
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
-
-        WindUIManager.OnDirectionConfirmed += HandleWindSelectionConfirmed;
     }
 
     private void OnEnable()
     {
-        MudProjectile.OnMudPuddleLand += HandlePuddleLanded;
-        CameraController.OnTransitionFinished += HandleCameraTransitionComplete;
+        _cameraController.OnTransitionFinished += HandleCameraTransitionComplete;
 
-        GolfBallController.OnBallStoppedMoving += OnBallStopped;
-        GolfBallController.OnBallLose += OnGolfBallLose;
-        GolfBallController.OnBallHitMonster += OnMudMonsterLose;
+        GolfBallEvents.OnGolfBallStopped += HandleBallStopped;
+
+        RoundEvents.OnRainSetupComplete += HandleRainSetupComplete;
+        RoundEvents.OnWindConfirmed += HandleWindConfirmed;
+
+        MudEvents.OnMudPuddleLand += HandleMudPuddleLand;
+
+        RoundEvents.OnGameOver += HandleGameOver;
+        RoundEvents.OnGameOver += HandleGameOver;
     }
 
     private void OnDisable()
     {
-        MudProjectile.OnMudPuddleLand -= HandlePuddleLanded;
-        CameraController.OnTransitionFinished -= HandleCameraTransitionComplete;
+        _cameraController.OnTransitionFinished -= HandleCameraTransitionComplete;
 
-        GolfBallController.OnBallStoppedMoving -= OnBallStopped;
-        GolfBallController.OnBallLose -= OnGolfBallLose;
-        GolfBallController.OnBallHitMonster -= OnMudMonsterLose;
-    }
+        GolfBallEvents.OnGolfBallStopped -= HandleBallStopped;
 
-    private void OnDestroy()
-    {
-        WindUIManager.OnDirectionConfirmed -= HandleWindSelectionConfirmed;
+        RoundEvents.OnRainSetupComplete -= HandleRainSetupComplete;
+        RoundEvents.OnWindConfirmed -= HandleWindConfirmed;
+
+        MudEvents.OnMudPuddleLand -= HandleMudPuddleLand;
+
+        RoundEvents.OnGameOver -= HandleGameOver;
+        RoundEvents.OnGameOver -= HandleGameOver;
     }
 
     public void InitializeAssignedPlayers(InputDevice player1Device, InputDevice player2Device)
@@ -74,8 +73,7 @@ public class GameManager : MonoBehaviour
         _golfBall.InitializeDevice(player1Device);
         _cameraController.InitializeDevice(player1Device);
         _mudMonster.InitializeDevice(player2Device);
-
-        GameUIManager.Instance.AssignUIDevices(player2Device);
+        _gameUIManager.AssignUIDevices(player2Device);
 
         StartGame();
     }
@@ -83,42 +81,25 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         SetGameplaySystemsActive(false);
-        GameUIManager.Instance.InitializeUI();
+        _gameUIManager.InitializeUI();
     }
 
     public void StartGame()
     {
         _currentState = GameState.RainSetup;
-        _rainLandedCount = 0;
         _cameraController.ChangeCameraMode(CameraController.CameraState.MudMonster);
         _environmentManager.SpawnRainProjectiles();
-
-        SoundManager.PlayMainMusic();
     }
 
-    private void HandlePuddleLanded()
+    private void HandleRainSetupComplete()
     {
-        if (_currentState == GameState.RainSetup)
-        {
-            _rainLandedCount++;
-            if (_rainLandedCount >= _environmentManager.RainProjectileCount)
-            {
-                StartMonsterSetup();
-            }
-        }
-        else if (_currentState == GameState.MonsterSetup)
-        {
-            _monsterSetupFired++;
-            if (_monsterSetupFired < _monsterSetupShots)
-            {
-                PrepareMonsterShot();
-            }
-            else
-            {
-                StartCoroutine(DelayedInitiateGolfTurn());
-            }
-        }
-        else if (_currentState == GameState.MonsterTurn)
+        if (_currentState != GameState.RainSetup) return;
+        StartCoroutine(DelayedInitiateGolfTurn());
+    }
+
+    private void HandleMudPuddleLand()
+    {
+        if (_currentState == GameState.MonsterTurn)
         {
             _mudMonster.enabled = false;
             StartCoroutine(DelayedInitiateGolfTurn());
@@ -139,7 +120,7 @@ public class GameManager : MonoBehaviour
         _cameraController.ChangeCameraMode(CameraController.CameraState.GolfBall);
     }
 
-    public void OnBallStopped()
+    public void HandleBallStopped()
     {
         if (_currentState != GameState.GolfTurn) return;
         SetGameplaySystemsActive(false);
@@ -167,22 +148,25 @@ public class GameManager : MonoBehaviour
     {
         _currentState = GameState.GolfTurn;
         _golfBall.enabled = true;
-        GameUIManager.Instance.SetGolfHUDActive(true);
+        _gameUIManager.SetGolfHUDActive(true);
     }
 
     private void ExecuteWindSelectPhase()
     {
         _currentState = GameState.WindSelect;
-        GameUIManager.Instance.SetWindUIActive(true);
+        _gameUIManager.SetWindUIActive(true);
     }
 
-    private void HandleWindSelectionConfirmed(Vector3 chosenDirection)
+    private void HandleWindConfirmed(Vector3 chosenDirection)
     {
-        CurrentWindDirection = chosenDirection;
-        _golfBall.UpdateWindDirection(CurrentWindDirection);
-        GameUIManager.Instance.SetWindUIActive(false);
+        _currentWindDirection = chosenDirection;
 
+        _golfBall.UpdateWindDirection(_currentWindDirection);
+        _mudMonster.UpdateWindDirection(_currentWindDirection);
+
+        _gameUIManager.SetWindUIActive(false);
         _environmentManager.ApplyWindParticlesToggle(chosenDirection);
+
         ExecuteMonsterTurn();
     }
 
@@ -192,36 +176,22 @@ public class GameManager : MonoBehaviour
         PrepareMonsterShot();
     }
 
-    private void StartMonsterSetup()
-    {
-        _currentState = GameState.MonsterSetup;
-        _monsterSetupFired = 0;
-        PrepareMonsterShot();
-    }
-
     private void PrepareMonsterShot()
     {
         _mudMonster.enabled = true;
-        GameUIManager.Instance.SetupMonsterAim();
+        _gameUIManager.SetupMonsterAim();
     }
 
-    public void OnMonsterShoot() => GameUIManager.Instance.HideMonsterAim();
-
-    public void OnGolfBallLose() { GameUIManager.Instance.ShowMonsterWin(); EndGame(); }
-    public void OnMudMonsterLose() { GameUIManager.Instance.ShowGolfWin(); EndGame(); }
-
-    private void EndGame()
+    private void HandleGameOver(RoundEvents.WinnerType winner)
     {
         _currentState = GameState.Resolution;
         SetGameplaySystemsActive(false);
-
-        OnGameOver?.Invoke();
     }
 
     private void SetGameplaySystemsActive(bool isActive)
     {
         _golfBall.enabled = isActive;
         _mudMonster.enabled = isActive;
-        GameUIManager.Instance.SetGlobalGameplayUIActive(isActive);
+        _gameUIManager.SetGlobalGameplayUIActive(isActive);
     }
 }

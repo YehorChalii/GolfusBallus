@@ -5,6 +5,9 @@ using UnityEngine.SceneManagement;
 
 public class GameOverHandler : MonoBehaviour
 {
+    [Header("References")]
+    [SerializeField] private GameUIManager _gameUIManager;
+
     [Header("Scene Settings")]
     [SerializeField] private int _gameplaySceneIndex = 1;
     [SerializeField] private float _restartDelay;
@@ -20,18 +23,18 @@ public class GameOverHandler : MonoBehaviour
 
     void OnEnable()
     {
-        GameManager.OnGameOver += EnableRestart;
+        RoundEvents.OnGameOver += EnableRestart;
         _controls.Menu.Confirm.started += OnRestartPressed;
     }
 
     void OnDisable()
     {
-        GameManager.OnGameOver -= EnableRestart;
+        RoundEvents.OnGameOver -= EnableRestart;
         _controls.Menu.Confirm.started -= OnRestartPressed;
         _controls.Menu.Disable();
     }
 
-    private void EnableRestart()
+    private void EnableRestart(RoundEvents.WinnerType winner)
     {
         _canRestart = true;
         _controls.Menu.Enable();
@@ -50,8 +53,7 @@ public class GameOverHandler : MonoBehaviour
         _canRestart = false;
         _controls.Menu.Disable();
 
-        GameUIManager.Instance.UpdateRestartVisuals();
-        SoundManager.PlayUISound();
+        _gameUIManager.UpdateRestartVisuals();
 
         yield return new WaitForSeconds(_restartDelay);
 

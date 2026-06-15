@@ -12,13 +12,12 @@ public class MudProjectile : MonoBehaviour
     [Header("Layers")]
     [SerializeField] private LayerMask _groundLayer;
 
-    [Header("Wind")]
+    [Header("Wind Settings")]
     [SerializeField] private float _maxWindForce;
 
     [Header("Spawn Settings")]
     [SerializeField] private float _upOffset;
 
-    private AudioSource _audioSource;
     private Rigidbody _rb;
     private Vector3 _windDirection;
 
@@ -26,7 +25,6 @@ public class MudProjectile : MonoBehaviour
     private void Awake()
     {
        _rb = GetComponent<Rigidbody>();
-        _audioSource = GetComponent<AudioSource>();
     }
 
     private void OnCollisionEnter(Collision other)
@@ -35,8 +33,6 @@ public class MudProjectile : MonoBehaviour
 
         SpawnMudPuddle(other);
         OnLand();
-
-        SoundManager.PlaySound(SoundType.SFX_MudSplash, 0.1f);
     }
 
     private void Update()

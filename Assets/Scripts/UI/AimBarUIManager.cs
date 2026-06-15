@@ -3,7 +3,7 @@ using System;
 
 public class AimBarUIManager : MonoBehaviour
 {
-    public static Action<float, float> OnAimSequenceFinished;
+    public Action<float, float> OnAimSequenceFinished;
 
     [SerializeField] private AimBarUI _firstBar;
     [SerializeField] private AimBarUI _secondBar;
@@ -20,8 +20,6 @@ public class AimBarUIManager : MonoBehaviour
             _firstBar.SetActive(false);
             _secondBar.SetActive(true);
             CurrentState = State.Bar2;
-
-            SoundManager.PlayUISound();
         }
         else if (CurrentState == State.Bar2)
         {
@@ -32,8 +30,6 @@ public class AimBarUIManager : MonoBehaviour
             float verticalForce = GetNormalized(AimBarUI.AXIS.Vertical);
 
             OnAimSequenceFinished?.Invoke(horizontalForce, verticalForce);
-
-            SoundManager.PlayUISound();
         }
     }
 
