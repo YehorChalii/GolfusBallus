@@ -513,7 +513,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &176366620
 RectTransform:
   m_ObjectHideFlags: 0
@@ -548,8 +548,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91d8ce6fd3fbdb54e91d1dd66bd728d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInputAssigner
-  _gameManager: {fileID: 0}
-  _gameUIManager: {fileID: 0}
   _matchStartDelay: 0.8
 --- !u!114 &176366622
 MonoBehaviour:
@@ -2184,7 +2182,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &879778958
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2383,7 +2381,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &998611461
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2946,7 +2944,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2145bc303dcd1764889465cc9c975e9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraController
-  _golfBall: {fileID: 0}
   _cameraChildTransform: {fileID: 1906085559}
   _golfBallTarget: {fileID: 100673775}
   _mudMonsterCamera: {fileID: 505804475}
@@ -2957,10 +2954,10 @@ MonoBehaviour:
   _maxPitch: 75
   _defaultFOV: 60
   _positionSmooth: 0.2
-  _maxDistanceMultiplier: 2
-  _distanceMultiplierLerpSpeed: 0
-  _toLaunchDirectionLerpSpeed: 0
   _transitionSpeed: 4.5
+  _launchYawLerpSpeed: 7
+  _maxDistanceMultiplier: 2
+  _distanceLerpSpeed: 7
   _useCameraShake: 1
   _maxShakeFrequency: 15
   _maxShakeMagnitude: 0.12
@@ -3283,12 +3280,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24eca589593a70b40a553768fc538b42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameUIManager
-  _aimBarUIManager: {fileID: 1606386737}
-  _windUIManager: {fileID: 42478897}
   _golfBallHUD: {fileID: 879778957}
   _mudMonsterWinPanel: {fileID: 811428103}
   _golfBallWinPanel: {fileID: 391512960}
   _restartButton: {fileID: 1578363933}
+  _aimBarUIManager: {fileID: 1606386737}
+  _windUIManager: {fileID: 42478897}
   _joinMenuPanel: {fileID: 176366619}
   _golfBallLaunchImage: {fileID: 1072542817}
   _mudMonsterLaunchImage: {fileID: 1857999240}
@@ -4742,12 +4739,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767dbf5768e775e429697793aa2ce07e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  _environmentManager: {fileID: 1180866460}
   _cameraController: {fileID: 1203913611}
   _golfBall: {fileID: 441354831}
   _mudMonster: {fileID: 950171502}
-  _environmentManager: {fileID: 1180866460}
-  _gameUIManager: {fileID: 0}
-  _windUIManager: {fileID: 0}
+  _monsterSetupShots: 1
   _roundsPerWindChange: 1
   _landedDelay: 0.8
 --- !u!4 &1979922790
@@ -4914,7 +4910,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18b1320b616a6b1459d1ffd8103ab19a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameOverHandler
-  _gameUIManager: {fileID: 0}
   _gameplaySceneIndex: 1
   _restartDelay: 0.8
 --- !u!1 &2075326700
@@ -5035,7 +5030,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2087314151
 RectTransform:
   m_ObjectHideFlags: 0

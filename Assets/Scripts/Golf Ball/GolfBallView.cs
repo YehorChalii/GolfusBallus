@@ -52,26 +52,22 @@ public class GolfBallView : MonoBehaviour
 
     void OnEnable()
     {
-        GolfBallEvents.OnGolfBallAimUpdated += HandleAimUpdate;
-        GolfBallEvents.OnGolfBallAimCanceled += HandleAimCancel;
-
-        GolfBallEvents.OnGolfBallLaunched += HandleLaunch;
-
-        GolfBallEvents.OnGolfBallMudEnter += HandleMudEnter;
-        GolfBallEvents.OnGolfBallMudExit += HandleMudExit;
+        _golfBallController.OnAimUpdated += HandleAimUpdated;
+        _golfBallController.OnAimCanceled += HandleAimCanceled;
+        _golfBallController.OnBallLaunched += HandleBallLaunched;
+        _golfBallController.OnMudEntered += HandleMudEntered;
+        _golfBallController.OnMudExited += HandleMudExited;
 
         SetShaderTimeMultiplier(1);
     }
 
     void OnDisable()
     {
-        GolfBallEvents.OnGolfBallAimUpdated -= HandleAimUpdate;
-        GolfBallEvents.OnGolfBallAimCanceled -= HandleAimCancel;
-
-        GolfBallEvents.OnGolfBallLaunched -= HandleLaunch;
-
-        GolfBallEvents.OnGolfBallMudEnter -= HandleMudEnter;
-        GolfBallEvents.OnGolfBallMudExit -= HandleMudExit;
+        _golfBallController.OnAimUpdated -= HandleAimUpdated;
+        _golfBallController.OnAimCanceled -= HandleAimCanceled;
+        _golfBallController.OnBallLaunched -= HandleBallLaunched;
+        _golfBallController.OnMudEntered -= HandleMudEntered;
+        _golfBallController.OnMudExited -= HandleMudExited;
 
         SetShaderTimeMultiplier(0);
     }
@@ -82,11 +78,12 @@ public class GolfBallView : MonoBehaviour
         UpdateMudFade();
     }
 
-    private void HandleAimUpdate(Vector3 launchDirection, float normalizedPower)
+    private void HandleAimUpdated(Vector3 launchDirection, float normalizedPower)
     {
         if (!_aimArrowShown)
         {
             _aimArrow.Show();
+            SoundManager.PlaySound(SoundType.SFX_GolfBallCharge, 0.1f);
         }
 
         _aimArrowShown = true;
@@ -111,7 +108,7 @@ public class GolfBallView : MonoBehaviour
         }
     }
 
-    private void HandleAimCancel()
+    private void HandleAimCanceled()
     {
         _aimArrow.Hide();
         _aimArrowShown = false;
@@ -119,9 +116,10 @@ public class GolfBallView : MonoBehaviour
         _speedEffectImage.gameObject.SetActive(false);
     }
 
-    private void HandleLaunch(Vector3 launchDirection)
+    private void HandleBallLaunched(Vector3 launchDirection, float force)
     {
-        HandleAimCancel();
+        HandleAimCanceled();
+        SoundManager.PlaySound(SoundType.SFX_GolfBallLaunch, 0.7f);
 
         if (_launchParticles != null)
         {
@@ -129,13 +127,15 @@ public class GolfBallView : MonoBehaviour
         }
     }
 
-    private void HandleMudEnter()
+    private void HandleMudEntered()
     {
+        SoundManager.PlaySound(SoundType.SFX_MudSplash, 0.3f);
+
         _targetMudAlpha = 1f;
         _currentFadeSpeed = _mudFadeInSpeed;
     }
 
-    private void HandleMudExit()
+    private void HandleMudExited()
     {
         _targetMudAlpha = 0f;
         _currentFadeSpeed = _mudFadeOutSpeed;

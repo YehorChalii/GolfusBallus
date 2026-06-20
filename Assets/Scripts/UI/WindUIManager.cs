@@ -1,10 +1,13 @@
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 public class WindUIManager : MonoBehaviour
 {
+    public static Action<Vector3> OnDirectionConfirmed;
+
     [Header("Arrow Images")]
     [SerializeField] private Image _upArrow;
     [SerializeField] private Image _downArrow;
@@ -124,7 +127,8 @@ public class WindUIManager : MonoBehaviour
             return;
         }
 
-        UIEvents.RaiseWindDirectionConfirmed(_currentSelectedDirection.normalized);
+        OnDirectionConfirmed?.Invoke(_currentSelectedDirection.normalized);
+        SoundManager.PlayMusic(SoundType.Music_Wind, 0.4f);
 
         _lockedDirection = _currentSelectedDirection;
 
