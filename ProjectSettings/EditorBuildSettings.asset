@@ -6,10 +6,10 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Cuscene.unity
+    path: Assets/Scenes/Main/Cuscene.unity
     guid: 5964dfe14fd0f154ab092a9ee4bc911b
   - enabled: 1
-    path: Assets/Scenes/Golfus Ballus.unity
+    path: Assets/Scenes/Main/Golfus Ballus.unity
     guid: beee798107d2847408bf6250570e2c24
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: 8612683ca0dff114dba4efa18e0216ee, type: 2}

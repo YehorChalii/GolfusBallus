@@ -1,11 +1,12 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 public class GameUIManager : MonoBehaviour
 {
-    public static GameUIManager Instance { get; private set; }
+    [Header("Managers")]
+    [SerializeField] private AimBarUIManager _aimBarUIManager;
+    [SerializeField] private WindUIManager _windUIManager;
 
     [Header("Golf Ball HUD")]
     [SerializeField] private GameObject _golfBallHUD;
@@ -15,20 +16,31 @@ public class GameUIManager : MonoBehaviour
     [SerializeField] private GameObject _golfBallWinPanel;
     [SerializeField] private Image _restartButton;
 
-    [Header("UI Managers")]
-    [SerializeField] private AimBarUIManager _aimBarUIManager;
-    [SerializeField] private WindUIManager _windUIManager;
-
     [Header("Join Players Panel")]
     [SerializeField] private GameObject _joinMenuPanel;
     [SerializeField] private Image _golfBallLaunchImage;
     [SerializeField] private Image _mudMonsterLaunchImage;
+
     [SerializeField] private Sprite _pressedSprite;
 
-    private void Awake()
+    void OnEnable()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        GolfBallEvents.OnGolfBallAimStarted += HandleGolfAimStarted;
+        GolfBallEvents.OnGolfBallLaunched += HandleGolfBallLaunched;
+
+        MudEvents.OnMudMonsterShot += HandleMonsterShot;
+
+        RoundEvents.OnGameOver += HandleGameOver;
+    }
+
+    void OnDisable()
+    {
+        GolfBallEvents.OnGolfBallAimStarted -= HandleGolfAimStarted;
+        GolfBallEvents.OnGolfBallLaunched -= HandleGolfBallLaunched;
+
+        MudEvents.OnMudMonsterShot -= HandleMonsterShot;
+
+        RoundEvents.OnGameOver -= HandleGameOver;
     }
 
     public void InitializeUI()
@@ -49,7 +61,6 @@ public class GameUIManager : MonoBehaviour
     public void UpdateJoinedPlayerVisuals(int playerNumber)
     {
         Image targetImage = (playerNumber == 1) ? _golfBallLaunchImage : _mudMonsterLaunchImage;
-
         targetImage.sprite = _pressedSprite;
     }
 
@@ -59,28 +70,8 @@ public class GameUIManager : MonoBehaviour
     }
 
     public void SetGolfHUDActive(bool isActive) => _golfBallHUD.SetActive(isActive);
-
-    public void ShowMonsterWin()
-    {
-        _mudMonsterWinPanel.SetActive(true);
-        _restartButton.gameObject.SetActive(true);
-
-        SoundManager.StopAllSounds();
-        SoundManager.StopMainMusic();
-        SoundManager.PlaySound(SoundType.Music_MudMonsterWins, 0.3f);
-    }
-
-    public void ShowGolfWin() 
-    {
-        _golfBallWinPanel.SetActive(true);
-        _restartButton.gameObject.SetActive(true);
-
-        SoundManager.StopAllSounds();
-        SoundManager.StopMainMusic();
-        SoundManager.PlaySound(SoundType.Music_GolfBallWins, 0.3f);
-    }  
-
     public void SetWindUIActive(bool isActive) => _windUIManager.gameObject.SetActive(isActive);
+    public void HideJoinMenuPanel() => _joinMenuPanel.gameObject.SetActive(false);
 
     public void SetupMonsterAim()
     {
@@ -90,11 +81,27 @@ public class GameUIManager : MonoBehaviour
 
     public void HideMonsterAim() => _aimBarUIManager.gameObject.SetActive(false);
 
-    public void HideJoinMenuPanel() => _joinMenuPanel.gameObject.SetActive(false);
-
     public void SetGlobalGameplayUIActive(bool isActive)
     {
         _aimBarUIManager.gameObject.SetActive(isActive);
         _golfBallHUD.SetActive(false);
+    }
+
+    private void HandleGolfAimStarted() => SetGolfHUDActive(true);
+    private void HandleGolfBallLaunched(Vector3 launchDir) => SetGolfHUDActive(false);
+    private void HandleMonsterShot() => HideMonsterAim();
+
+    private void HandleGameOver(RoundEvents.WinnerType winner)
+    {
+        if(winner == RoundEvents.WinnerType.GolfBall)
+        {
+            _golfBallWinPanel.SetActive(true);
+        }
+        if (winner == RoundEvents.WinnerType.MudMonster)
+        {
+            _mudMonsterWinPanel.SetActive(true);
+        }
+
+        _restartButton.gameObject.SetActive(true);
     }
 }
