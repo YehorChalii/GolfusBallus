@@ -2,13 +2,14 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 
 public class MudMonsterController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private GameObject _mudProjectile;
     [SerializeField] private Transform _shootTransform;
-    [SerializeField] private CameraController _cameraController;
+    [SerializeField] private Transform _cameraTransform;
     [SerializeField] private AimBarUIManager _aimBarUIManager;
     [SerializeField] private TrajectoryRenderer _trajectoryRenderer;
 
@@ -16,7 +17,7 @@ public class MudMonsterController : MonoBehaviour
     [SerializeField] private float _fixedAngle;
     [SerializeField] private float _minForce;
     [SerializeField] private float _maxForce;
-    [SerializeField] private float _afterShootDelay;
+    [SerializeField] private float _afterShootDelay = 0.5f;
 
     [Header("Animations")]
     [SerializeField] private Animator _animator;
@@ -26,7 +27,6 @@ public class MudMonsterController : MonoBehaviour
 
     private float _horizontalValue = 0.5f;
     private float _verticalValue = 0.5f;
-    private Vector3 _currentWindDirection;
 
     public void InitializeDevice(InputDevice assignedDevice)
     {
@@ -45,7 +45,7 @@ public class MudMonsterController : MonoBehaviour
     {
         if (_controls != null) _controls.Monster.Enable();
 
-        _aimBarUIManager.OnAimSequenceFinished += HandleAimFinished;
+        AimBarUIManager.OnAimSequenceFinished += HandleAimFinished;
         _isAiming = true;
     }
 
@@ -53,12 +53,7 @@ public class MudMonsterController : MonoBehaviour
     {
         if (_controls != null) _controls.Monster.Disable();
 
-        _aimBarUIManager.OnAimSequenceFinished -= HandleAimFinished;
-    }
-
-    public void UpdateWindDirection(Vector3 windDirection)
-    {
-        _currentWindDirection = windDirection;
+        AimBarUIManager.OnAimSequenceFinished -= HandleAimFinished;
     }
 
     void Update()
@@ -97,8 +92,7 @@ public class MudMonsterController : MonoBehaviour
         yield return new WaitForSeconds(_afterShootDelay);
 
         Shoot();
-
-        MudEvents.RaiseMudMonsterShot();
+        GameManager.Instance.OnMonsterShoot();
     }
 
     private Vector3 CalculateLaunchVelocity()
@@ -106,8 +100,10 @@ public class MudMonsterController : MonoBehaviour
         float widthNormalized = _horizontalValue * 2f - 1f;
         float force = Mathf.Lerp(_minForce, _maxForce, _verticalValue);
 
-        float cameraYaw = _cameraController.GetYaw();
-        Vector3 cameraForward = Quaternion.Euler(0f, cameraYaw, 0f) * Vector3.forward;
+        Vector3 cameraForward = _cameraTransform.forward;
+        cameraForward.y = 0f;
+        if (cameraForward.sqrMagnitude < 0.001f) cameraForward = Vector3.forward;
+        cameraForward.Normalize();
 
         Vector3 horizontalDir = Quaternion.AngleAxis(widthNormalized * 90f, Vector3.up) * cameraForward;
         Vector3 rightAxis = new Vector3(horizontalDir.z, 0f, -horizontalDir.x);
@@ -127,9 +123,11 @@ public class MudMonsterController : MonoBehaviour
 
         if (projectile.TryGetComponent<MudProjectile>(out var mudProjectile))
         {
-            mudProjectile.InitializeWindForce(_currentWindDirection);
+            mudProjectile.InitializeWindForce(GameManager.Instance.CurrentWindDirection);
         }
 
         projectile.GetComponent<Rigidbody>().AddForce(velocity, ForceMode.Impulse);
+
+        SoundManager.PlaySound(SoundType.SFX_MudShot, 0.7f);
     }
 }

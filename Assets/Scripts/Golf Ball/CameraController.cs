@@ -4,60 +4,59 @@ using UnityEngine.InputSystem;
 
 public class CameraController : MonoBehaviour
 {
-    public Action OnTransitionFinished;
-
+    public static Action OnTransitionFinished;
     public enum CameraState { GolfBall, MudMonster, Transition }
 
     private CameraState _currentState = CameraState.MudMonster;
-    private CameraState _targetState;
 
-    [Header("Reference")]
-    [SerializeField] private GolfBallController _golfBall;
+    [Header("Hierarchy Link")]
     [SerializeField] private Transform _cameraChildTransform;
 
     [Header("Targets")]
     [SerializeField] private Transform _golfBallTarget;
     [SerializeField] private Camera _mudMonsterCamera;
 
-    [Header("Ball Orbit Settings")]
+    [Header("Orbit Settings")]
     [SerializeField] private float _baseDistance;
     [SerializeField] private float _height;
     [SerializeField] private float _orbitSpeed;
     [SerializeField] private float _minPitch;
     [SerializeField] private float _maxPitch;
     [SerializeField] private float _defaultFOV;
+
+    [Header("Smoothing")]
     [SerializeField] private float _positionSmooth;
-
-    private Vector2 _lookInput;
-
-    private float _yaw;
-    private float _pitch = 20f;
-    private Vector3 _posVelocity;
-
-    [Header("Ball Launching Settings")]
-    [SerializeField, Range(1f, 2f)] private float _maxDistanceMultiplier;
-    [SerializeField] private float _distanceMultiplierLerpSpeed;
-    [SerializeField] private float _toLaunchDirectionLerpSpeed;
-
-    private float _launchDirectionYaw;
-    private bool _isLerpingToLaunchDirection;
-
-    private float _currentAimPower;
-    private float _currentDistanceMultiplier = 1f;
-    private float _targetDistanceMultiplier = 1f;
 
     [Header("Transitions")]
     [SerializeField] private float _transitionSpeed;
+    [SerializeField] private float _launchYawLerpSpeed;
+
+    [Header("Aim Distance")]
+    [SerializeField, Range(1f, 2f)] private float _maxDistanceMultiplier;
+    [SerializeField] private float _distanceLerpSpeed;
 
     [Header("Aim Camera Shake")]
     [SerializeField] private bool _useCameraShake = true;
     [SerializeField] private float _maxShakeFrequency;
     [SerializeField] private float _maxShakeMagnitude;
 
-    private float _shakeTimer;
-
+    private float _yaw;
+    private float _pitch = 20f;
+    private Vector3 _posVelocity;
     private Camera _camera;
+
+    private bool _lerpingToTargetYaw;
+    private float _targetYaw;
+
+    private float _currentDistanceMultiplier = 1f;
+    private float _targetDistanceMultiplier = 1f;
+    private float _currentAimPower;
+    private float _shakeTimeAccumulator;
+
     private InputSystem_Actions _controls;
+    private Vector2 _lookInput;
+
+    private CameraState _targetState;
 
     void Awake()
     {
@@ -79,56 +78,25 @@ public class CameraController : MonoBehaviour
         _controls.Golf.Enable();
     }
 
-    private void OnLookPerformed(InputAction.CallbackContext ctx)
-    {
-        if (_currentState != CameraState.GolfBall) return;
-
-        _lookInput = ctx.ReadValue<Vector2>();
-        if (_isLerpingToLaunchDirection) _isLerpingToLaunchDirection = false;
-    }
-
-    private void OnLookCanceled(InputAction.CallbackContext ctx) => _lookInput = Vector2.zero;
-
     void OnEnable()
     {
         if (_controls != null) _controls.Golf.Enable();
-
-        GolfBallEvents.OnGolfBallAimUpdated += HandleAimUpdate;
-        GolfBallEvents.OnGolfBallAimCanceled += HandleAimCancel;
-
-        GolfBallEvents.OnGolfBallLaunched += HandleLaunch;
     }
 
     void OnDisable()
     {
         if (_controls != null) _controls.Golf.Disable();
-
-        GolfBallEvents.OnGolfBallAimUpdated -= HandleAimUpdate;
-        GolfBallEvents.OnGolfBallAimCanceled -= HandleAimCancel;
-
-        GolfBallEvents.OnGolfBallLaunched -= HandleLaunch;
     }
 
-    private void HandleAimUpdate(Vector3 launchDir, float normalizedPower)
+    private void OnLookPerformed(InputAction.CallbackContext ctx)
     {
-        _currentAimPower = normalizedPower;
-        _targetDistanceMultiplier = 1f + _currentAimPower * (_maxDistanceMultiplier - 1f);
+        if (_currentState != CameraState.GolfBall) return;
+
+        _lookInput = ctx.ReadValue<Vector2>();
+        if (_lerpingToTargetYaw) _lerpingToTargetYaw = false;
     }
 
-    private void HandleAimCancel()
-    {
-        _currentAimPower = 0f;
-        _targetDistanceMultiplier = 1f;
-    }
-
-    private void HandleLaunch(Vector3 launchDir)
-    {
-        _currentAimPower = 0f;
-        _targetDistanceMultiplier = 1f;
-
-        _isLerpingToLaunchDirection = true;
-        _launchDirectionYaw = Mathf.Atan2(launchDir.x, launchDir.z) * Mathf.Rad2Deg;
-    }
+    private void OnLookCanceled(InputAction.CallbackContext ctx) => _lookInput = Vector2.zero;
 
     void LateUpdate()
     {
@@ -156,13 +124,13 @@ public class CameraController : MonoBehaviour
         _pitch += _lookInput.y * _orbitSpeed * Time.deltaTime;
         _pitch = Mathf.Clamp(_pitch, _minPitch, _maxPitch);
 
-        if (_isLerpingToLaunchDirection)
+        if (_lerpingToTargetYaw)
         {
-            _yaw = Mathf.LerpAngle(_yaw, _launchDirectionYaw, _toLaunchDirectionLerpSpeed * Time.deltaTime);
-            if (Mathf.Abs(Mathf.DeltaAngle(_yaw, _launchDirectionYaw)) <= 0.05f)
+            _yaw = Mathf.LerpAngle(_yaw, _targetYaw, _launchYawLerpSpeed * Time.deltaTime);
+            if (Mathf.Abs(Mathf.DeltaAngle(_yaw, _targetYaw)) <= 0.05f)
             {
-                _yaw = _launchDirectionYaw;
-                _isLerpingToLaunchDirection = false;
+                _yaw = _targetYaw;
+                _lerpingToTargetYaw = false;
             }
         }
     }
@@ -172,7 +140,7 @@ public class CameraController : MonoBehaviour
         _currentDistanceMultiplier = Mathf.Lerp(
             _currentDistanceMultiplier,
             _targetDistanceMultiplier,
-            _distanceMultiplierLerpSpeed * Time.deltaTime);
+            _distanceLerpSpeed * Time.deltaTime);
     }
 
     void ApplyGolfBallPosition()
@@ -187,13 +155,13 @@ public class CameraController : MonoBehaviour
         if (_useCameraShake && _currentAimPower > 0.01f)
         {
             float currentFrequency = _maxShakeFrequency * _currentAimPower;
-            _shakeTimer += Time.deltaTime * currentFrequency;
+            _shakeTimeAccumulator += Time.deltaTime * currentFrequency;
 
-            _cameraChildTransform.localPosition = GetPerlinShakeOffset(_shakeTimer);
+            _cameraChildTransform.localPosition = GetPerlinShakeOffset(_shakeTimeAccumulator);
         }
         else
         {
-            _shakeTimer = 0f;
+            _shakeTimeAccumulator = 0f;
             _cameraChildTransform.localPosition = Vector3.zero;
         }
 
@@ -280,6 +248,18 @@ public class CameraController : MonoBehaviour
         if (newState == _currentState) return;
         _targetState = newState;
         _currentState = CameraState.Transition;
+    }
+
+    public void OnBallLaunched(Vector3 launchDir)
+    {
+        _lerpingToTargetYaw = true;
+        _targetYaw = Mathf.Atan2(launchDir.x, launchDir.z) * Mathf.Rad2Deg;
+    }
+
+    public void SetAimPower(float power)
+    {
+        _currentAimPower = Mathf.Clamp01(power);
+        _targetDistanceMultiplier = 1f + _currentAimPower * (_maxDistanceMultiplier - 1f);
     }
 
     public float GetYaw() => _yaw;

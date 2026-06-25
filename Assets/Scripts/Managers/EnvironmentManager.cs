@@ -1,6 +1,5 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class EnvironmentManager : MonoBehaviour
 {
@@ -19,6 +18,8 @@ public class EnvironmentManager : MonoBehaviour
     [SerializeField] private ParticleSystem _windLeftParticles;
     [SerializeField] private ParticleSystem _windRightParticles;
 
+    public int RainProjectileCount => _rainProjectileCount;
+
     public void SpawnRainProjectiles()
     {
         List<Vector3> spawnedPositions = new List<Vector3>();
@@ -29,8 +30,6 @@ public class EnvironmentManager : MonoBehaviour
             spawnedPositions.Add(spawnPos);
             Instantiate(_mudProjectilePrefab, spawnPos, _mudProjectilePrefab.transform.rotation);
         }
-
-        RoundEvents.RaiseRainSetupComplete();
     }
 
     private Vector3 GetValidRainSpawnPosition(List<Vector3> existingPositions)
@@ -42,7 +41,7 @@ public class EnvironmentManager : MonoBehaviour
         while (!isValidPosition && attempts < _maxAttemptsPerProjectile)
         {
             attempts++;
-            Vector2 randomPoint = UnityEngine.Random.insideUnitCircle * _rainRadius;
+            Vector2 randomPoint = Random.insideUnitCircle * _rainRadius;
             spawnPos = new Vector3(randomPoint.x, _rainSpawnHeight, randomPoint.y);
 
             isValidPosition = CheckRainSpawnPositionValidity(spawnPos, existingPositions);

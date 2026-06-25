@@ -1,14 +1,10 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 
 public class PlayerInputAssigner : MonoBehaviour
 {
-    [Header("References")]
-    [SerializeField] private GameManager _gameManager;
-    [SerializeField] private GameUIManager _gameUIManager;
-
-    [Header("Settings")]
     [SerializeField] private float _matchStartDelay;
 
     private InputDevice _player1Device;
@@ -48,7 +44,8 @@ public class PlayerInputAssigner : MonoBehaviour
             _player1Connected = true;
             Debug.Log($"Player 1 (Golf Ball) Connected via device: {device.name}");
 
-            _gameUIManager.UpdateJoinedPlayerVisuals(1);
+            GameUIManager.Instance.UpdateJoinedPlayerVisuals(1);
+            SoundManager.PlayUISound();
 
             return;
         }
@@ -59,7 +56,8 @@ public class PlayerInputAssigner : MonoBehaviour
             _player2Connected = true;
             Debug.Log($"Player 2 (Mud Monster) Connected via device: {device.name}");
 
-            _gameUIManager.UpdateJoinedPlayerVisuals(2);
+            GameUIManager.Instance.UpdateJoinedPlayerVisuals(2);
+            SoundManager.PlayUISound();
 
             StartCoroutine(DelayedStartMatch());
         }
@@ -76,8 +74,12 @@ public class PlayerInputAssigner : MonoBehaviour
 
     private void StartMatch()
     {
-        _gameUIManager.HideJoinMenuPanel();
-        _gameManager.InitializeAssignedPlayers(_player1Device, _player2Device);
+        GameUIManager.Instance.HideJoinMenuPanel();
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.InitializeAssignedPlayers(_player1Device, _player2Device);
+        }
 
         Destroy(gameObject);
     }
