@@ -1,5 +1,5 @@
 using System;
-using System.Collections; // Added for IEnumerator and Coroutines
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -53,6 +53,7 @@ public class GolfBallController : MonoBehaviour
     private Vector2 _aimSmoothVelocity;
     private Vector2 _currentPull;
 
+    private bool _canLaunch;
     private bool _isInMud;
     private float _launchTimer;
     private float _currentSpeed;
@@ -73,13 +74,27 @@ public class GolfBallController : MonoBehaviour
         }
 
         _controls.Golf.Launch.performed += OnR2Pressed;
-        _controls.Golf.Aim.performed += ctx => _aimInput = ctx.ReadValue<Vector2>();
+        _controls.Golf.Aim.performed += Aim;
         _controls.Golf.Aim.canceled += ctx => _aimInput = Vector2.zero;
 
         _controls.Golf.Enable();
     }
 
-    void OnEnable() => _controls?.Golf.Enable();
+    void Aim(InputAction.CallbackContext ctx)
+    {
+        if (_canLaunch)
+        {
+            _aimInput = ctx.ReadValue<Vector2>();
+        }
+    }
+
+    void OnEnable()
+    {
+        _canLaunch = true;
+
+        _controls?.Golf.Enable();
+    }
+
     void OnDisable() => _controls?.Golf.Disable();
 
     void OnR2Pressed(InputAction.CallbackContext ctx)
@@ -110,8 +125,9 @@ public class GolfBallController : MonoBehaviour
         _rb.angularVelocity = Vector3.zero;
         _rb.AddForce(launchDir * power, ForceMode.Impulse);
 
-        _cameraController.OnBallLaunched(launchDir);
+        _canLaunch = false;
 
+        _cameraController.OnBallLaunched(launchDir);
         OnBallLaunched?.Invoke(launchDir, power);
 
         _currentPull = Vector2.zero;
